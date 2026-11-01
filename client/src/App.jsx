@@ -16,14 +16,247 @@ async function request(path, { token, ...options } = {}) {
 }
 
 function Auth({ onAuth }) {
-  const [mode,setMode]=useState('login'); const [form,setForm]=useState({ name:'',email:'',password:'' }); const [error,setError]=useState(''); const [busy,setBusy]=useState(false);
-  const submit=async (event)=>{event.preventDefault();setError('');setBusy(true);try{const data=await request(`/auth/${mode}`,{method:'POST',body:JSON.stringify(form)});onAuth(data);}catch(err){setError(err.message);}finally{setBusy(false);}};
-  return <main className="auth-shell"><div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div><section className="auth-card"><div className="auth-kicker"><Sparkles size={14}/> A gentler way to stay in tune</div><h1>Your health, <em>in focus.</em></h1><p className="auth-copy">Keep your daily readings in one calm, simple place.</p><div className="auth-tabs"><button className={mode==='login'?'active':''} onClick={()=>{setMode('login');setError('');}}>Log in</button><button className={mode==='register'?'active':''} onClick={()=>{setMode('register');setError('');}}>Create account</button></div><form onSubmit={submit} className="auth-form">
-    {mode==='register'&&<label>Your name<input autoComplete="name" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Samarth"/></label>}
-    <label>Email address<input type="email" autoComplete="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="you@example.com"/></label>
-    <label>Password<input type="password" autoComplete={mode==='login'?'current-password':'new-password'} minLength="8" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})} placeholder="At least 8 characters"/></label>
-    {error&&<div className="alert error">{error}</div>}<button className="primary-btn full" disabled={busy}>{busy?'Please wait…':mode==='login'?'Log in to Sweety':'Create my account'}<ChevronRight size={17}/></button>
-  </form><p className="auth-foot"><Heart size={13}/> Your readings are private and belong to you.</p></section><div className="auth-orbit orbit-one"/><div className="auth-orbit orbit-two"/></main>;
+  const [mode,setMode]=useState('login'); 
+  const [form,setForm]=useState({ name:'',email:'',password:'' }); 
+  const [error,setError]=useState(''); 
+  const [success,setSuccess]=useState('');
+  const [busy,setBusy]=useState(false);
+  
+  const submit=async (event)=>{
+    event.preventDefault();
+    setError('');
+    setSuccess('');
+    setBusy(true);
+    
+    try{
+      if(mode==='forgot'){
+        // Forgot password
+        const data=await request('/auth/forgot-password',{method:'POST',body:JSON.stringify({email:form.email})});
+        setSuccess(data.message);
+        setForm({...form,email:''});
+      }else{
+        // Login or Register
+        const data=await request(`/auth/${mode}`,{method:'POST',body:JSON.stringify(form)});
+        onAuth(data);
+      }
+    }catch(err){
+      setError(err.message);
+    }finally{
+      setBusy(false);
+    }
+  };
+  
+  return <main className="auth-shell">
+    <div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div>
+    <section className="auth-card">
+      <div className="auth-kicker"><Sparkles size={14}/> A gentler way to stay in tune</div>
+      <h1>Your health, <em>in focus.</em></h1>
+      <p className="auth-copy">Keep your daily readings in one calm, simple place.</p>
+      
+      {mode!=='forgot'&&<div className="auth-tabs">
+        <button className={mode==='login'?'active':''} onClick={()=>{setMode('login');setError('');setSuccess('');}}>Log in</button>
+        <button className={mode==='register'?'active':''} onClick={()=>{setMode('register');setError('');setSuccess('');}}>Create account</button>
+      </div>}
+      
+      {mode==='forgot'&&<div className="auth-back">
+        <button onClick={()=>{setMode('login');setError('');setSuccess('');}} className="back-btn">
+          <ChevronLeft size={16}/> Back to login
+        </button>
+      </div>}
+      
+      <form onSubmit={submit} className="auth-form">
+        {mode==='forgot'&&<>
+          <div className="forgot-header">
+            <h2>Reset your password</h2>
+            <p>Enter your email and we'll send you a link to reset your password.</p>
+          </div>
+        </>}
+        
+        {mode==='register'&&<label>Your name<input autoComplete="name" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Samarth"/></label>}
+        
+        <label>Email address<input type="email" autoComplete="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="you@example.com"/></label>
+        
+        {mode!=='forgot'&&<label>Password<input type="password" autoComplete={mode==='login'?'current-password':'new-password'} minLength="8" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})} placeholder="At least 8 characters"/></label>}
+        
+        {error&&<div className="alert error">{error}</div>}
+        {success&&<div className="alert success">{success}</div>}
+        
+        <button className="primary-btn full" disabled={busy}>
+          {busy?'Please wait…':mode==='login'?'Log in to Sweety':mode==='register'?'Create my account':'Send reset link'}
+          <ChevronRight size={17}/>
+        </button>
+        
+        {mode==='login'&&<button type="button" className="forgot-link" onClick={()=>{setMode('forgot');setError('');setSuccess('');}}>
+          Forgot password?
+        </button>}
+      </form>
+      
+      <p className="auth-foot"><Heart size={13}/> Your readings are private and belong to you.</p>
+    </section>
+    <div className="auth-orbit orbit-one"/>
+    <div className="auth-orbit orbit-two"/>
+  </main>;
+}
+
+function ResetPassword() {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [validToken, setValidToken] = useState(null);
+  const [email, setEmail] = useState('');
+  
+  // Get token from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('token');
+  
+  // Verify token on mount
+  useEffect(() => {
+    if (!token) {
+      setError('Invalid reset link');
+      return;
+    }
+    
+    async function verifyToken() {
+      try {
+        const data = await request(`/auth/verify-reset-token/${token}`);
+        if (data.valid) {
+          setValidToken(true);
+          setEmail(data.email);
+        } else {
+          setValidToken(false);
+          setError(data.error || 'Invalid or expired reset link');
+        }
+      } catch (err) {
+        setValidToken(false);
+        setError(err.message);
+      }
+    }
+    
+    verifyToken();
+  }, [token]);
+  
+  const submit = async (event) => {
+    event.preventDefault();
+    setError('');
+    
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+    
+    setBusy(true);
+    try {
+      await request('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password })
+      });
+      setSuccess(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  
+  if (success) {
+    return <main className="auth-shell">
+      <div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div>
+      <section className="auth-card">
+        <div className="success-state">
+          <div className="success-icon">✓</div>
+          <h2>Password reset successful!</h2>
+          <p>Your password has been updated. You can now log in with your new password.</p>
+          <button className="primary-btn full" onClick={() => window.location.href = '/'}>
+            Go to login <ChevronRight size={17}/>
+          </button>
+        </div>
+      </section>
+      <div className="auth-orbit orbit-one"/>
+      <div className="auth-orbit orbit-two"/>
+    </main>;
+  }
+  
+  if (validToken === false) {
+    return <main className="auth-shell">
+      <div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div>
+      <section className="auth-card">
+        <div className="error-state">
+          <div className="error-icon">✕</div>
+          <h2>Invalid Reset Link</h2>
+          <p>{error || 'This password reset link is invalid or has expired.'}</p>
+          <button className="primary-btn full" onClick={() => window.location.href = '/'}>
+            Back to login <ChevronRight size={17}/>
+          </button>
+        </div>
+      </section>
+      <div className="auth-orbit orbit-one"/>
+      <div className="auth-orbit orbit-two"/>
+    </main>;
+  }
+  
+  if (validToken === null) {
+    return <main className="auth-shell">
+      <div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div>
+      <section className="auth-card">
+        <div className="loading-state">Verifying reset link...</div>
+      </section>
+      <div className="auth-orbit orbit-one"/>
+      <div className="auth-orbit orbit-two"/>
+    </main>;
+  }
+  
+  return <main className="auth-shell">
+    <div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div>
+    <section className="auth-card">
+      <div className="auth-kicker"><Sparkles size={14}/> Set a new password</div>
+      <h1>Reset your password</h1>
+      <p className="auth-copy">Create a strong password for {email}</p>
+      
+      <form onSubmit={submit} className="auth-form">
+        <label>New password
+          <input 
+            type="password" 
+            autoComplete="new-password" 
+            minLength="8" 
+            required 
+            value={password} 
+            onChange={e=>setPassword(e.target.value)} 
+            placeholder="At least 8 characters"
+          />
+        </label>
+        
+        <label>Confirm password
+          <input 
+            type="password" 
+            autoComplete="new-password" 
+            minLength="8" 
+            required 
+            value={confirmPassword} 
+            onChange={e=>setConfirmPassword(e.target.value)} 
+            placeholder="Re-enter your password"
+          />
+        </label>
+        
+        {error&&<div className="alert error">{error}</div>}
+        
+        <button className="primary-btn full" disabled={busy}>
+          {busy?'Resetting…':'Reset password'}
+          <ChevronRight size={17}/>
+        </button>
+      </form>
+      
+      <p className="auth-foot"><Heart size={13}/> Your security is important to us.</p>
+    </section>
+    <div className="auth-orbit orbit-one"/>
+    <div className="auth-orbit orbit-two"/>
+  </main>;
 }
 
 function App() {
@@ -33,7 +266,29 @@ function App() {
   const token=session?.token;
   function authenticate(data){localStorage.setItem('sweety-session',JSON.stringify(data));setSession(data);}
   function logout(){localStorage.removeItem('sweety-session');setSession(null);setReadings([]);setReports(null);}
-  useEffect(()=>{if(!token)return;let live=true;setLoading(true);Promise.all([request('/readings?limit=100',{token}),request(`/reports?date=${selected}`,{token})]).then(([r,rep])=>{if(live){setReadings(r.readings);setReports(rep);}}).catch(err=>{if(live){setToast(err.message);if(err.message.includes('session'))logout();}}).finally(()=>live&&setLoading(false));return()=>{live=false;};},[token,selected]);
+  useEffect(()=>{
+    if(!token)return;
+    let live=true;
+    setLoading(true);
+    Promise.all([request('/readings?limit=100',{token}),request(`/reports?date=${selected}`,{token})])
+      .then(([r,rep])=>{
+        if(live){
+          console.log('Initial fetch - Readings:', r.readings);
+          console.log('Initial fetch - Reports:', rep);
+          setReadings(r.readings);
+          setReports(rep);
+        }
+      })
+      .catch(err=>{
+        if(live){
+          console.error('Fetch error:', err);
+          setToast(err.message);
+          if(err.message.includes('session'))logout();
+        }
+      })
+      .finally(()=>live&&setLoading(false));
+    return()=>{live=false;};
+  },[token,selected]);
   useEffect(()=>{if(!toast)return;const id=setTimeout(()=>setToast(''),3500);return()=>clearTimeout(id);},[toast]);
   const monthDate=new Date(`${selected}T00:00:00`); const monthLabel=monthDate.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
   const monthReadings=useMemo(()=>readings.filter(r=>String(r.date).slice(0,7)===selected.slice(0,7)),[readings,selected]);
@@ -43,9 +298,37 @@ function App() {
   function shiftDate(days){const d=new Date(`${selected}T00:00:00`);d.setDate(d.getDate()+days);const next=dateKey(d);if(next<=localToday)setSelected(next);}
   function openAdd(slot){setEditing(null);setForm({date:selected,slot:slot||SLOTS.find(s=>!currentReadings.some(r=>r.slot===s))||SLOTS[0],value:''});setFormError('');setModal(true);}
   function openEdit(reading){setEditing(reading);setForm({date:String(reading.date).slice(0,10),slot:reading.slot,value:String(reading.value)});setFormError('');setModal(true);}
-  async function saveReading(event){event.preventDefault();setSaving(true);setFormError('');try{await request(editing?`/readings/${editing.id}`:'/readings',{token,method:editing?'PUT':'POST',body:JSON.stringify({...form,value:Number(form.value)})});setModal(false);setToast(editing?'Reading updated':'Reading saved');const [r,rep]=await Promise.all([request('/readings?limit=100',{token}),request(`/reports?date=${selected}`,{token})]);setReadings(r.readings);setReports(rep);}catch(err){setFormError(err.message);}finally{setSaving(false);}}
+  async function saveReading(event){
+    event.preventDefault();
+    setSaving(true);
+    setFormError('');
+    try{
+      const savedReading = await request(editing?`/readings/${editing.id}`:'/readings',{token,method:editing?'PUT':'POST',body:JSON.stringify({...form,value:Number(form.value)})});
+      console.log('Saved reading:', savedReading);
+      setModal(false);
+      setToast(editing?'Reading updated':'Reading saved');
+      
+      // Fetch fresh data from server
+      const [r,rep]=await Promise.all([request('/readings?limit=100',{token}),request(`/reports?date=${selected}`,{token})]);
+      console.log('Fetched readings:', r.readings);
+      console.log('Fetched reports:', rep);
+      setReadings(r.readings);
+      setReports(rep);
+    }catch(err){
+      console.error('Save error:', err);
+      setFormError(err.message);
+    }finally{
+      setSaving(false);
+    }
+  }
   async function removeReading(id){if(!window.confirm('Delete this glucose reading?'))return;try{await request(`/readings/${id}`,{token,method:'DELETE'});setToast('Reading deleted');const [r,rep]=await Promise.all([request('/readings?limit=100',{token}),request(`/reports?date=${selected}`,{token})]);setReadings(r.readings);setReports(rep);}catch(err){setToast(err.message);}}
   const reportCards=reports?[{title:'Today',period:prettyDate(selected),data:reports.daily,accent:'mint',icon:Activity},{title:'Month to date',period:`${prettyDate(reports.monthToDate.startDate,{day:'numeric',month:'short'})} – ${prettyDate(reports.monthToDate.endDate)}`,data:reports.monthToDate,accent:'peach',icon:CalendarDays},{title:'Previous month',period:`${prettyDate(reports.previousMonth.startDate,{day:'numeric',month:'short'})} – ${prettyDate(reports.previousMonth.endDate)}`,data:reports.previousMonth,accent:'lavender',icon:Sparkles}]:[];
+  
+  // Check if we're on the reset password page
+  if (window.location.pathname === '/reset-password' || window.location.search.includes('token=')) {
+    return <ResetPassword />;
+  }
+  
   if(!session)return <Auth onAuth={authenticate}/>;
   return <div className="app-shell"><aside className="sidebar"><a className="brand" href="#"><span className="brand-mark"><Droplets size={22}/></span><span>sweety<small>YOUR GLUCOSE JOURNAL</small></span></a><div className="sidebar-section-label">WORKSPACE</div><button className="side-link active"><Activity size={18}/>Overview</button><button className="side-link" onClick={()=>document.getElementById('readings')?.scrollIntoView({behavior:'smooth'})}><Droplets size={18}/>My readings</button><div className="side-note"><div className="side-note-icon"><Heart size={17}/></div><strong>Little steps add up.</strong><p>Every reading helps you understand your health a little better.</p><div className="note-dots"><i/><i/><i/><i/><i/></div></div><div className="sidebar-bottom"><div className="avatar">{session.user.name.slice(0,1).toUpperCase()}</div><div className="user-copy"><strong>{session.user.name}</strong><span>Personal account</span></div><button className="icon-btn logout" title="Log out" onClick={logout}><LogOut size={17}/></button></div></aside>
     <main className="main-content"><header className="topbar"><div className="breadcrumb">Workspace <span>/</span> <b>Overview</b></div><div className="topbar-right"><div className="secure-pill"><span/> Your data is private</div><button className="help-btn" title="Your glucose readings are visible only to you"><CircleHelp size={19}/></button></div></header>
