@@ -1,5 +1,38 @@
+import pg from 'pg';
 import 'dotenv/config';
-import { pool } from './pool.js';
+
+const { Pool } = pg;
+
+// First connect to postgres database to create sweety database
+const adminPool = new Pool({
+  user: 'postgres',
+  host: 'localhost',
+  database: 'postgres',
+  password: 'Samarth_2006',
+  port: 5432,
+});
+
+try {
+  // Try to create the database
+  await adminPool.query('CREATE DATABASE sweety');
+  console.log('✅ Database "sweety" created');
+} catch (error) {
+  if (error.code === '42P04') {
+    console.log('✅ Database "sweety" already exists');
+  } else {
+    console.error('Error creating database:', error.message);
+  }
+}
+await adminPool.end();
+
+// Now connect to sweety database and create tables
+export const pool = new Pool({
+  user: 'postgres',
+  host: 'localhost',
+  database: 'sweety',
+  password: 'Samarth_2006',
+  port: 5432,
+});
 
 await pool.query(`
   CREATE TABLE IF NOT EXISTS users (
@@ -20,5 +53,5 @@ await pool.query(`
   );
   CREATE INDEX IF NOT EXISTS readings_user_date_idx ON readings(user_id, reading_date);
 `);
-console.log('Database tables are ready.');
+console.log('✅ Database tables are ready.');
 await pool.end();
