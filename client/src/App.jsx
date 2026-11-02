@@ -17,7 +17,7 @@ async function request(path, { token, ...options } = {}) {
 
 function Auth({ onAuth }) {
   const [mode,setMode]=useState('login'); 
-  const [form,setForm]=useState({ name:'',email:'',password:'' }); 
+  const [form,setForm]=useState({ name:'',email:'',password:'',confirmPassword:'' }); 
   const [error,setError]=useState(''); 
   const [success,setSuccess]=useState('');
   const [busy,setBusy]=useState(false);
@@ -30,10 +30,9 @@ function Auth({ onAuth }) {
     
     try{
       if(mode==='forgot'){
-        // Forgot password
-        const data=await request('/auth/forgot-password',{method:'POST',body:JSON.stringify({email:form.email})});
-        setSuccess(data.message);
-        setForm({...form,email:''});
+        if(form.password !== form.confirmPassword) throw new Error('Passwords do not match.');
+        await request('/auth/reset-password-direct',{method:'POST',body:JSON.stringify({email:form.email,password:form.password})});
+        setSuccess('Password updated. You can now log in with your new password.');
       }else{
         // Login or Register
         const data=await request(`/auth/${mode}`,{method:'POST',body:JSON.stringify(form)});
@@ -68,23 +67,26 @@ function Auth({ onAuth }) {
         {mode==='forgot'&&<>
           <div className="forgot-header">
             <h2>Reset your password</h2>
-            <p>Enter your email and we'll send you a link to reset your password.</p>
+            <p>Enter your email address and choose a new password.</p>
           </div>
         </>}
         
         {mode==='register'&&<label>Your name<input autoComplete="name" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Samarth"/></label>}
         
-        <label>Email address<input type="email" autoComplete="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="you@example.com"/></label>
+        {!(mode==='forgot'&&success)&&<label>Email address<input type="email" autoComplete="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="you@example.com"/></label>}
         
-        {mode!=='forgot'&&<label>Password<input type="password" autoComplete={mode==='login'?'current-password':'new-password'} minLength="8" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})} placeholder="At least 8 characters"/></label>}
+        {(mode!=='forgot'||!success)&&<label>{mode==='forgot'?'New password':'Password'}<input type="password" autoComplete={mode==='login'?'current-password':'new-password'} minLength="8" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})} placeholder="At least 8 characters"/></label>}
+        {mode==='forgot'&&!success&&<label>Confirm new password<input type="password" autoComplete="new-password" minLength="8" required value={form.confirmPassword} onChange={e=>setForm({...form,confirmPassword:e.target.value})} placeholder="Re-enter your password"/></label>}
         
         {error&&<div className="alert error">{error}</div>}
         {success&&<div className="alert success">{success}</div>}
         
-        <button className="primary-btn full" disabled={busy}>
-          {busy?'Please wait…':mode==='login'?'Log in to Sweety':mode==='register'?'Create my account':'Send reset link'}
-          <ChevronRight size={17}/>
-        </button>
+        {mode==='forgot'&&success
+          ? <button type="button" className="primary-btn full" onClick={()=>{setMode('login');setForm({...form,email:'',password:'',confirmPassword:''});setError('');setSuccess('');}}>Back to login <ChevronRight size={17}/></button>
+          : <button className="primary-btn full" disabled={busy}>
+              {busy?'Please wait…':mode==='login'?'Log in to Sweety':mode==='register'?'Create my account':'Update password'}
+              <ChevronRight size={17}/>
+            </button>}
         
         {mode==='login'&&<button type="button" className="forgot-link" onClick={()=>{setMode('forgot');setError('');setSuccess('');}}>
           Forgot password?

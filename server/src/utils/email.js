@@ -1,19 +1,18 @@
-import nodemailer from 'nodemailer';
+// Lazy import nodemailer to avoid ESM issues
+let nodemailer = null;
 
-// Create email transporter
-// For development, we'll use Gmail. For production, use a proper email service.
-const transporter = nodemailer.createTransporter({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER || 'your-email@gmail.com',
-    pass: process.env.EMAIL_PASS || 'your-app-password',
-  },
-});
+async function getNodemailer() {
+  if (!nodemailer) {
+    nodemailer = await import('nodemailer');
+  }
+  return nodemailer.default || nodemailer;
+}
 
 // For development/testing without real email, use Ethereal (fake SMTP)
 async function createTestTransporter() {
-  const testAccount = await nodemailer.createTestAccount();
-  return nodemailer.createTransporter({
+  const nm = await getNodemailer();
+  const testAccount = await nm.createTestAccount();
+  return nm.createTransport({
     host: 'smtp.ethereal.email',
     port: 587,
     secure: false,
@@ -24,9 +23,24 @@ async function createTestTransporter() {
   });
 }
 
+async function createGmailTransporter() {
+  const nm = await getNodemailer();
+  return nm.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+}
+
 export async function sendPasswordResetEmail(email, resetToken, userName) {
-  // Use test transporter if EMAIL_USER is not configured
-  const emailTransporter = process.env.EMAIL_USER ? transporter : await createTestTransporter();
+  const nm = await getNodemailer();
+  
+  // Use Gmail transporter if EMAIL_USER is configured, otherwise use test account
+  const emailTransporter = process.env.EMAIL_USER 
+    ? await createGmailTransporter()
+    : await createTestTransporter();
   
   const resetLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:5173'}/reset-password?token=${resetToken}`;
   
@@ -105,7 +119,7 @@ If you didn't request a password reset, you can safely ignore this email. Your p
   
   // If using test account, log the preview URL
   if (!process.env.EMAIL_USER) {
-    console.log('📧 Preview email: ' + nodemailer.getTestMessageUrl(info));
+    console.log('📧 Preview email: ' + nm.getTestMessageUrl(info));
   }
   
   return info;

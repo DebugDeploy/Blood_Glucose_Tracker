@@ -71,6 +71,21 @@ router.post('/forgot-password', async (req, res, next) => {
   }
 });
 
+// Direct password reset for this app: the user supplies their account email and new password.
+router.post('/reset-password-direct', async (req, res, next) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    const user = await findUserByEmail(email);
+    if (!user) return res.status(404).json({ error: 'No account was found with that email address.' });
+    const passwordHash = await bcrypt.hash(password, 12);
+    await updateUserPassword(user.id, passwordHash);
+    res.json({ message: 'Password updated. You can now log in with your new password.' });
+  } catch (error) { next(error); }
+});
+
 // Reset Password - Verify token and set new password
 router.post('/reset-password', async (req, res, next) => {
   try {
