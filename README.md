@@ -96,6 +96,4 @@ npm run build
 
 ## Notes
 
-**Assumptions:** Each of the four named time slots can have one reading per user per day. Readings are entered in mg/dl, must be whole numbers from 40 to 600, and cannot be dated in the future. The app creates tables automatically, but the PostgreSQL database must be created first.
-
 **With more time:** I would add database-backed tests for duplicate and daily-limit behavior, tests for report calculations and user data separation, and improve the in-app pagination controls.
