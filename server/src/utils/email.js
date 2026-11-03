@@ -47,7 +47,7 @@ export async function sendPasswordResetEmail(email, resetToken, userName) {
   const mailOptions = {
     from: process.env.EMAIL_USER || 'noreply@sweety.app',
     to: email,
-    subject: 'Reset Your Sweety Password',
+    subject: 'Reset Your Blood Glucose Tracker Password',
     html: `
       <!DOCTYPE html>
       <html>
@@ -65,12 +65,11 @@ export async function sendPasswordResetEmail(email, resetToken, userName) {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🩸 Sweety</h1>
-            <p>Your Glucose Journal</p>
+            <h1>🩸 Blood Glucose Tracker</h1>
           </div>
           <div class="content">
             <h2>Hi ${userName || 'there'},</h2>
-            <p>We received a request to reset your password for your Sweety account.</p>
+            <p>We received a request to reset your Blood Glucose Tracker password.</p>
             <p>Click the button below to create a new password:</p>
             <div style="text-align: center;">
               <a href="${resetLink}" class="button">Reset Password</a>
@@ -90,7 +89,7 @@ export async function sendPasswordResetEmail(email, resetToken, userName) {
             </p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} Sweety - Blood Glucose Tracker</p>
+            <p>© ${new Date().getFullYear()} Blood Glucose Tracker</p>
             <p>This is an automated email. Please do not reply.</p>
           </div>
         </div>
@@ -100,7 +99,7 @@ export async function sendPasswordResetEmail(email, resetToken, userName) {
     text: `
 Hi ${userName || 'there'},
 
-We received a request to reset your password for your Sweety account.
+We received a request to reset your Blood Glucose Tracker password.
 
 Click this link to create a new password: ${resetLink}
 
@@ -111,7 +110,7 @@ Click this link to create a new password: ${resetLink}
 
 If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
 
-© ${new Date().getFullYear()} Sweety - Blood Glucose Tracker
+© ${new Date().getFullYear()} Blood Glucose Tracker
     `,
   };
 

@@ -46,11 +46,12 @@ function Auth({ onAuth }) {
   };
   
   return <main className="auth-shell">
-    <div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div>
+    <div className="auth-brand"><span>Blood Glucose Tracker</span></div>
     <section className="auth-card">
-      <div className="auth-kicker"><Sparkles size={14}/> A gentler way to stay in tune</div>
-      <h1>Your health, <em>in focus.</em></h1>
-      <p className="auth-copy">Keep your daily readings in one calm, simple place.</p>
+      {mode!=='forgot'&&<>
+        <h1>Your health, <em>in focus.</em></h1>
+        <p className="auth-copy">Keep your daily readings in one place.</p>
+      </>}
       
       {mode!=='forgot'&&<div className="auth-tabs">
         <button className={mode==='login'?'active':''} onClick={()=>{setMode('login');setError('');setSuccess('');}}>Log in</button>
@@ -71,9 +72,9 @@ function Auth({ onAuth }) {
           </div>
         </>}
         
-        {mode==='register'&&<label>Your name<input autoComplete="name" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Samarth"/></label>}
+        {mode==='register'&&<label>Your name<input autoComplete="name" required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>}
         
-        {!(mode==='forgot'&&success)&&<label>Email address<input type="email" autoComplete="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="you@example.com"/></label>}
+        {!(mode==='forgot'&&success)&&<label>Email address<input type="email" autoComplete="email" required value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></label>}
         
         {(mode!=='forgot'||!success)&&<label>{mode==='forgot'?'New password':'Password'}<input type="password" autoComplete={mode==='login'?'current-password':'new-password'} minLength="8" required value={form.password} onChange={e=>setForm({...form,password:e.target.value})} placeholder="At least 8 characters"/></label>}
         {mode==='forgot'&&!success&&<label>Confirm new password<input type="password" autoComplete="new-password" minLength="8" required value={form.confirmPassword} onChange={e=>setForm({...form,confirmPassword:e.target.value})} placeholder="Re-enter your password"/></label>}
@@ -84,7 +85,7 @@ function Auth({ onAuth }) {
         {mode==='forgot'&&success
           ? <button type="button" className="primary-btn full" onClick={()=>{setMode('login');setForm({...form,email:'',password:'',confirmPassword:''});setError('');setSuccess('');}}>Back to login <ChevronRight size={17}/></button>
           : <button className="primary-btn full" disabled={busy}>
-              {busy?'Please wait…':mode==='login'?'Log in to Sweety':mode==='register'?'Create my account':'Update password'}
+              {busy?'Please wait…':mode==='login'?'Login':mode==='register'?'Create my account':'Update password'}
               <ChevronRight size={17}/>
             </button>}
         
@@ -93,7 +94,6 @@ function Auth({ onAuth }) {
         </button>}
       </form>
       
-      <p className="auth-foot"><Heart size={13}/> Your readings are private and belong to you.</p>
     </section>
     <div className="auth-orbit orbit-one"/>
     <div className="auth-orbit orbit-two"/>
@@ -169,7 +169,7 @@ function ResetPassword() {
   
   if (success) {
     return <main className="auth-shell">
-      <div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div>
+      <div className="auth-brand"><span>Blood Glucose Tracker</span></div>
       <section className="auth-card">
         <div className="success-state">
           <div className="success-icon">✓</div>
@@ -187,7 +187,7 @@ function ResetPassword() {
   
   if (validToken === false) {
     return <main className="auth-shell">
-      <div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div>
+      <div className="auth-brand"><span>Blood Glucose Tracker</span></div>
       <section className="auth-card">
         <div className="error-state">
           <div className="error-icon">✕</div>
@@ -205,7 +205,7 @@ function ResetPassword() {
   
   if (validToken === null) {
     return <main className="auth-shell">
-      <div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div>
+      <div className="auth-brand"><span>Blood Glucose Tracker</span></div>
       <section className="auth-card">
         <div className="loading-state">Verifying reset link...</div>
       </section>
@@ -215,7 +215,7 @@ function ResetPassword() {
   }
   
   return <main className="auth-shell">
-    <div className="auth-brand"><div className="brand-mark"><Droplets size={23}/></div><span>sweety</span></div>
+    <div className="auth-brand"><span>Blood Glucose Tracker</span></div>
     <section className="auth-card">
       <div className="auth-kicker"><Sparkles size={14}/> Set a new password</div>
       <h1>Reset your password</h1>
@@ -332,17 +332,15 @@ function App() {
   }
   
   if(!session)return <Auth onAuth={authenticate}/>;
-  return <div className="app-shell"><aside className="sidebar"><a className="brand" href="#"><span className="brand-mark"><Droplets size={22}/></span><span>sweety<small>YOUR GLUCOSE JOURNAL</small></span></a><div className="sidebar-section-label">WORKSPACE</div><button className="side-link active"><Activity size={18}/>Overview</button><button className="side-link" onClick={()=>document.getElementById('readings')?.scrollIntoView({behavior:'smooth'})}><Droplets size={18}/>My readings</button><div className="side-note"><div className="side-note-icon"><Heart size={17}/></div><strong>Little steps add up.</strong><p>Every reading helps you understand your health a little better.</p><div className="note-dots"><i/><i/><i/><i/><i/></div></div><div className="sidebar-bottom"><div className="avatar">{session.user.name.slice(0,1).toUpperCase()}</div><div className="user-copy"><strong>{session.user.name}</strong><span>Personal account</span></div><button className="icon-btn logout" title="Log out" onClick={logout}><LogOut size={17}/></button></div></aside>
-    <main className="main-content"><header className="topbar"><div className="breadcrumb">Workspace <span>/</span> <b>Overview</b></div><div className="topbar-right"><div className="secure-pill"><span/> Your data is private</div><button className="help-btn" title="Your glucose readings are visible only to you"><CircleHelp size={19}/></button></div></header>
-      <div className="page-wrap"><section className="welcome-row"><div><div className="eyebrow"><Sparkles size={14}/> YOUR HEALTH SNAPSHOT</div><h1>Good day, {session.user.name.split(' ')[0]} <span className="wave">✳</span></h1><p className="subheading">A little check-in goes a long way. Here’s how things are looking.</p></div><button className="primary-btn add-top" onClick={()=>openAdd()}><Plus size={18}/> Add reading</button></section>
-      <section className="date-toolbar"><div className="date-title"><div className="date-icon"><CalendarDays size={18}/></div><div><span>Showing your health for</span><strong>{prettyDate(selected)}</strong></div></div><div className="date-controls"><button className="arrow-btn" onClick={()=>shiftDate(-1)} aria-label="Previous day"><ChevronLeft size={18}/></button><button className="today-btn" onClick={()=>setSelected(localToday)}>Today</button><button className="arrow-btn" onClick={()=>shiftDate(1)} disabled={selected>=localToday} aria-label="Next day"><ChevronRight size={18}/></button><button className="month-picker" onClick={()=>{const d=new Date(`${selected}T00:00:00`);d.setDate(1);document.getElementById('report-date').showPicker?.();document.getElementById('report-date').value=dateKey(d);document.getElementById('report-date').onchange=e=>setSelected(e.target.value);}}>{monthLabel}<ChevronDown size={15}/><input id="report-date" className="date-hidden" aria-label="Choose report date" type="date" max={localToday} value={selected} onChange={e=>setSelected(e.target.value)}/></button></div></section>
+  return <div className="app-shell"><main className="main-content"><div className="page-wrap"><div className="dashboard-brand-row"><a className="brand" href="#"><span>Blood Glucose Tracker</span></a><button className="icon-btn logout" title="Log out" onClick={logout}><LogOut size={17}/></button></div><section className="welcome-row"><div><h1>Good day, {session.user.name.split(' ')[0]}</h1></div><button className="primary-btn add-top" onClick={()=>openAdd()}><Plus size={18}/> Add reading</button></section>
+      <section className="date-toolbar"><div className="date-title"><div className="date-icon"><CalendarDays size={18}/></div><strong>{prettyDate(selected)}</strong></div><div className="date-controls"><button className="arrow-btn" onClick={()=>shiftDate(-1)} aria-label="Previous day"><ChevronLeft size={18}/></button><button className="today-btn" onClick={()=>setSelected(localToday)}>Today</button><button className="arrow-btn" onClick={()=>shiftDate(1)} disabled={selected>=localToday} aria-label="Next day"><ChevronRight size={18}/></button><button className="month-picker" onClick={()=>{const d=new Date(`${selected}T00:00:00`);d.setDate(1);document.getElementById('report-date').showPicker?.();document.getElementById('report-date').value=dateKey(d);document.getElementById('report-date').onchange=e=>setSelected(e.target.value);}}>{monthLabel}<ChevronDown size={15}/><input id="report-date" className="date-hidden" aria-label="Choose report date" type="date" max={localToday} value={selected} onChange={e=>setSelected(e.target.value)}/></button></div></section>
       <section className="summary-grid">{reportCards.map(({title,period,data,accent,icon:Icon})=><article className={`summary-card ${accent}`} key={title}><div className="summary-top"><div className="summary-icon"><Icon size={17}/></div><span className="summary-label">{title}</span><span className="period">{period}</span></div><div className="summary-body">{!data||data.count===0?<><strong className="empty-stat">—</strong><span className="empty-copy">No readings yet</span></>:<><div className="avg-number">{data.average}<span> mg/dl</span></div><span className="avg-caption">average glucose</span></>}<div className="stat-divider"/><div className="stat-row"><div><span>Highest</span><strong>{data?.highest??'—'}{data?.count>0&&<small> mg/dl</small>}</strong></div><div><span>Lowest</span><strong>{data?.lowest??'—'}{data?.count>0&&<small> mg/dl</small>}</strong></div><div><span>Readings</span><strong>{data?.count??0}<small> total</small></strong></div></div></div></article>)}</section>
       <section className="chart-card"><div className="card-heading"><div><div className="section-title">Your month at a glance <span className="tiny-spark">✳</span></div><p>Daily average readings through {monthLabel}</p></div><div className="chart-legend"><i/> Daily average <span>· mg/dl</span></div></div><div className="chart-area"><div className="chart-y-labels"><span>{Math.ceil(maxChart/50)*50}</span><span>{Math.round((maxChart+minChart)/2)}</span><span>{Math.floor(minChart/50)*50}</span></div><div className="chart-plot"><div className="grid-line top"/><div className="grid-line middle"/><div className="grid-line bottom"/><svg className="chart-svg" viewBox="0 0 1000 190" preserveAspectRatio="none" role="img" aria-label={`Daily glucose averages during ${monthLabel}`}>
-        {(()=>{const pts=chartData.map((d,i)=>d.avg===null?null:{x:chartData.length===1?500:i*1000/(chartData.length-1),y:175-(d.avg-minChart)/(maxChart-minChart||1)*160,day:d.day,avg:d.avg}).filter(Boolean);if(!pts.length)return null;const line=pts.map((p,i)=>`${i?'L':'M'} ${p.x} ${p.y}`).join(' ');const fill=`${line} L ${pts[pts.length-1].x} 190 L ${pts[0].x} 190 Z`;return <><defs><linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity=".25"/><stop offset="100%" stopColor="#10b981" stopOpacity="0"/></linearGradient></defs><path d={fill} fill="url(#areaFill)"/><path d={line} fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/>{pts.map(p=><g key={p.day}><circle cx={p.x} cy={p.y} r="5" fill="#0f1420" stroke="#10b981" strokeWidth="3" vectorEffect="non-scaling-stroke"><title>{p.day} {monthLabel}: {p.avg.toFixed(0)} mg/dl average</title></circle></g>)}</>;})()}
+        {(()=>{const pts=chartData.map((d,i)=>d.avg===null?null:{x:chartData.length===1?500:i*1000/(chartData.length-1),y:175-(d.avg-minChart)/(maxChart-minChart||1)*160,day:d.day,avg:d.avg}).filter(Boolean);if(!pts.length)return null;const line=pts.map((p,i)=>`${i?'L':'M'} ${p.x} ${p.y}`).join(' ');const fill=`${line} L ${pts[pts.length-1].x} 190 L ${pts[0].x} 190 Z`;return <><defs><linearGradient id="areaFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity=".25"/><stop offset="100%" stopColor="#10b981" stopOpacity="0"/></linearGradient></defs><path d={fill} fill="url(#areaFill)"/><path d={line} fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke"/>{pts.map(p=><g key={p.day}><circle cx={p.x} cy={p.y} r="5" fill="#0d0d0d" stroke="#10b981" strokeWidth="3" vectorEffect="non-scaling-stroke"><title>{p.day} {monthLabel}: {p.avg.toFixed(0)} mg/dl average</title></circle></g>)}</>;})()}
         </svg><div className="chart-x-labels">{[1,5,10,15,20,25,chartData.length].filter((d,i,a)=>d<=chartData.length&&a.indexOf(d)===i).map(day=><span key={day}>{day}</span>)}</div></div></div></section>
-      <section className="readings-card" id="readings"><div className="card-heading readings-heading"><div><div className="section-title">Daily readings <span className="count-pill">{currentReadings.length}/4</span></div><p>Your check-ins for {prettyDate(selected,{day:'numeric',month:'long'})}</p></div><button className="secondary-btn" onClick={()=>setShowAll(!showAll)}>{showAll?'Today’s view':'View all readings'}<ChevronRight size={16}/></button></div>{currentReadings.length===0?<div className="empty-state"><div className="empty-art"><Droplets size={25}/></div><strong>No readings for this day</strong><p>Your daily check-in is a small way to show yourself some care.</p><button className="secondary-btn" onClick={()=>openAdd()}><Plus size={16}/> Add your first reading</button></div>:<div className="readings-table-wrap"><table><thead><tr><th>TIME SLOT</th><th>GLUCOSE VALUE</th><th>CHECK-IN</th><th></th></tr></thead><tbody>{(showAll?readings:currentReadings).map((r)=><tr key={r.id}><td><span className="slot-dot"/>{r.slot}</td><td><strong className="reading-value">{r.value}</strong><span className="unit">mg/dl</span></td><td><span className="reading-date">{prettyDate(r.date,{day:'numeric',month:'short',year:'numeric'})}</span></td><td className="row-actions"><button onClick={()=>openEdit(r)}>Edit</button><button className="delete-action" onClick={()=>removeReading(r.id)}>Delete</button></td></tr>)}</tbody></table></div>}</section>
-      <footer className="page-footer"><span><Heart size={13}/> Made for the little moments that matter.</span><span>Personal health journal <i/> Sweety</span></footer></div></main>
-      {modal&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(false);}}><section className="modal"><div className="modal-header"><div><div className="eyebrow">{editing?'UPDATE YOUR CHECK-IN':'A MOMENT FOR YOU'}</div><h2>{editing?'Edit reading':'Add a reading'}</h2></div><button className="icon-btn" onClick={()=>setModal(false)} aria-label="Close"><X size={20}/></button></div><p className="modal-copy">A quick check-in helps build a clearer picture over time.</p><form onSubmit={saveReading} className="reading-form"><label>Date<input type="date" required max={localToday} value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label><label>Time slot<select value={form.slot} onChange={e=>setForm({...form,slot:e.target.value})}>{SLOTS.map(s=><option key={s}>{s}</option>)}</select></label><label>Glucose value <span className="label-unit">mg/dl</span><div className="value-input-wrap"><input type="number" inputMode="numeric" min="40" max="600" step="1" required autoFocus value={form.value} onChange={e=>setForm({...form,value:e.target.value})} placeholder="e.g. 105"/><Droplets size={18}/></div></label>{formError&&<div className="alert error">{formError}</div>}<div className="form-hint"><CircleHelp size={14}/> Enter a whole number between 40 and 600 mg/dl.</div><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setModal(false)}>Cancel</button><button className="primary-btn" disabled={saving}>{saving?'Saving…':editing?'Save changes':'Save reading'}<ChevronRight size={16}/></button></div></form></section></div>}
+      <section className="readings-card" id="readings"><div className="card-heading readings-heading"><div><div className="section-title">Daily readings <span className="count-pill">{currentReadings.length}/4</span></div><p>Your check-ins for {prettyDate(selected,{day:'numeric',month:'long'})}</p></div><button className="secondary-btn" onClick={()=>setShowAll(!showAll)}>{showAll?'Today’s view':'View all readings'}<ChevronRight size={16}/></button></div>{currentReadings.length===0?<div className="empty-state"><div className="empty-art"><Droplets size={25}/></div><strong>No readings for this day</strong><p>Your daily check-in is a small way to show yourself some care.</p><button className="secondary-btn" onClick={()=>openAdd()}><Plus size={16}/> Add your first reading</button></div>:<div className="readings-table-wrap"><table><thead><tr><th>TIME SLOT</th><th>GLUCOSE VALUE</th><th>CHECK-IN</th><th></th></tr></thead><tbody>{(showAll?readings:currentReadings).map((r)=><tr key={r.id}><td><span className={`slot-dot ${SLOTS.indexOf(r.slot)===0?'morning':SLOTS.indexOf(r.slot)===1?'afternoon':SLOTS.indexOf(r.slot)===2?'evening':'night'}`}/>{r.slot}</td><td><strong className="reading-value">{r.value}</strong><span className="unit">mg/dl</span></td><td><span className="reading-date">{prettyDate(r.date,{day:'numeric',month:'short',year:'numeric'})}</span></td><td className="row-actions"><button onClick={()=>openEdit(r)}>Edit</button><button className="delete-action" onClick={()=>removeReading(r.id)}>Delete</button></td></tr>)}</tbody></table></div>}</section>
+      <footer className="page-footer"><span>Personal health journal <i/> Blood Glucose Tracker</span></footer></div></main>
+      {modal&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(false);}}><section className="modal"><div className="modal-header"><div><div className="eyebrow">{editing?'UPDATE YOUR CHECK-IN':'A MOMENT FOR YOU'}</div><h2>{editing?'Edit reading':'Add a reading'}</h2></div><button className="icon-btn" onClick={()=>setModal(false)} aria-label="Close"><X size={20}/></button></div><p className="modal-copy">A quick check-in helps build a clearer picture over time.</p><form onSubmit={saveReading} className="reading-form"><label>Date<input type="date" required max={localToday} value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label><label>Time slot<select value={form.slot} onChange={e=>setForm({...form,slot:e.target.value})}>{SLOTS.map(s=><option key={s}>{s}</option>)}</select></label><label>Glucose value <span className="label-unit">mg/dl</span><div className="value-input-wrap"><input type="number" inputMode="numeric" min="40" max="600" step="1" required autoFocus value={form.value} onChange={e=>setForm({...form,value:e.target.value})}/><Droplets size={18}/></div></label>{formError&&<div className="alert error">{formError}</div>}<div className="form-hint"><CircleHelp size={14}/> Enter a whole number between 40 and 600 mg/dl.</div><div className="modal-actions"><button type="button" className="secondary-btn" onClick={()=>setModal(false)}>Cancel</button><button className="primary-btn" disabled={saving}>{saving?'Saving…':editing?'Save changes':'Save reading'}<ChevronRight size={16}/></button></div></form></section></div>}
       {toast&&<div className="toast"><span>✓</span>{toast}</div>}{loading&&<div className="loading-indicator">Updating your health snapshot…</div>}</div>;
 }
 
