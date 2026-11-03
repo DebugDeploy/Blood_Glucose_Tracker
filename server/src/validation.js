@@ -1,5 +1,12 @@
-export const SLOTS = ['Morning (fasting)', 'After breakfast', 'After lunch', 'After dinner'];
+// Available time slots for readings
+export const SLOTS = [
+  'Morning (fasting)',
+  'After breakfast',
+  'After lunch',
+  'After dinner'
+];
 
+// Format a local date as YYYY-MM-DD.
 export function localDateString(date = new Date()) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -7,19 +14,60 @@ export function localDateString(date = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
-function isCalendarDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false;
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+// Keep the named helper used by validation and its tests.
+export function getTodayDate() {
+  return localDateString();
 }
 
-export function validateReading({ date, slot, value }) {
-  if (value === '' || value === null || value === undefined) return 'Please enter a glucose value.';
-  const numericValue = Number(value);
-  if (!Number.isInteger(numericValue) || numericValue < 40 || numericValue > 600) return 'Value must be between 40 and 600 mg/dl.';
-  if (!SLOTS.includes(slot)) return 'Please choose a valid time slot.';
-  if (!isCalendarDate(date)) return 'Please choose a valid date.';
-  if (date > localDateString()) return 'Date cannot be in the future.';
+// Check if date is valid (YYYY-MM-DD format)
+function isValidDate(dateString) {
+  // Check format with regex
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return false;
+  }
+
+  // Parse the date parts
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  // Create a date object
+  const date = new Date(year, month - 1, day);
+
+  // Check if the date components match (catches invalid dates like Feb 30)
+  return date.getFullYear() === year &&
+         date.getMonth() === month - 1 &&
+         date.getDate() === day;
+}
+
+// Validate a glucose reading
+export function validateReading(reading) {
+  const { date, slot, value } = reading;
+
+  // Rule 1: Value is required
+  if (!value && value !== 0) {
+    return 'Please enter a glucose value.';
+  }
+
+  // Rule 2: Value must be whole number between 40 and 600
+  const numValue = Number(value);
+  if (!Number.isInteger(numValue) || numValue < 40 || numValue > 600) {
+    return 'Value must be between 40 and 600 mg/dl.';
+  }
+
+  // Check if slot is valid
+  if (!SLOTS.includes(slot)) {
+    return 'Please choose a valid time slot.';
+  }
+
+  // Check if date is valid
+  if (!isValidDate(date)) {
+    return 'Please choose a valid date.';
+  }
+
+  // Rule 5: Date cannot be in the future
+  if (date > getTodayDate()) {
+    return 'Date cannot be in the future.';
+  }
+
+  // All validations passed
   return null;
 }

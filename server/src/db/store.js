@@ -1,93 +1,177 @@
 import { pool } from './pool.js';
 
+// Create database tables if they don't exist
 export async function initializeStore() {
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-    CREATE TABLE IF NOT EXISTS readings (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, reading_date DATE NOT NULL, slot TEXT NOT NULL CHECK (slot IN ('Morning (fasting)', 'After breakfast', 'After lunch', 'After dinner')), value INTEGER NOT NULL CHECK (value BETWEEN 40 AND 600), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(user_id, reading_date, slot));
-    CREATE INDEX IF NOT EXISTS readings_user_date_idx ON readings(user_id, reading_date);
-    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    -- Users table: stores user accounts
+    CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      token TEXT NOT NULL UNIQUE,
-      expires_at TIMESTAMPTZ NOT NULL,
-      used BOOLEAN DEFAULT FALSE,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
-    CREATE INDEX IF NOT EXISTS password_reset_tokens_token_idx ON password_reset_tokens(token);
+
+    -- Readings table: stores blood glucose readings
+    CREATE TABLE IF NOT EXISTS readings (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      reading_date DATE NOT NULL,
+      slot TEXT NOT NULL CHECK (
+        slot IN ('Morning (fasting)', 'After breakfast', 'After lunch', 'After dinner')
+      ),
+      value INTEGER NOT NULL CHECK (value BETWEEN 40 AND 600),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, reading_date, slot)
+    );
+
+    -- Index for faster queries by user and date
+    CREATE INDEX IF NOT EXISTS readings_user_date_idx
+      ON readings (user_id, reading_date);
   `);
-  console.log('PostgreSQL tables are ready.');
+
+  console.log('✅ PostgreSQL tables are ready.');
 }
 
+// Create a new user account
 export async function createUser({ name, email, passwordHash }) {
-  const { rows } = await pool.query('INSERT INTO users(name,email,password_hash) VALUES($1,$2,$3) RETURNING id,name,email', [name,email,passwordHash]);
-  return rows[0];
+  const result = await pool.query(
+    `INSERT INTO users (name, email, password_hash)
+     VALUES ($1, $2, $3)
+     RETURNING id, name, email`,
+    [name, email, passwordHash]
+  );
+
+  return result.rows[0];
 }
 
+// Find a user by email address
 export async function findUserByEmail(email) {
-  const { rows } = await pool.query('SELECT id,name,email,password_hash FROM users WHERE email=$1', [email]);
-  return rows[0] || null;
+  const result = await pool.query(
+    `SELECT id, name, email, password_hash
+     FROM users
+     WHERE email = $1`,
+    [email]
+  );
+
+  return result.rows[0] || null;
 }
 
+// Get list of readings for a user (with pagination)
 export async function listReadings(userId, limit = 100, offset = 0) {
-  const { rows } = await pool.query('SELECT id,reading_date::text AS date,slot,value FROM readings WHERE user_id=$1 ORDER BY reading_date DESC,slot ASC LIMIT $2 OFFSET $3', [userId,limit,offset]);
-  return rows;
+  const result = await pool.query(
+    `SELECT id, reading_date::text AS date, slot, value
+     FROM readings
+     WHERE user_id = $1
+     ORDER BY reading_date DESC, slot ASC
+     LIMIT $2 OFFSET $3`,
+    [userId, limit, offset]
+  );
+
+  return result.rows;
 }
 
+// Save a new reading or update an existing one
 export async function saveReading(userId, { id, date, slot, value }) {
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
-    // Serialize writes for this user's date so concurrent requests cannot exceed four readings.
-    await client.query('SELECT pg_advisory_xact_lock($1, hashtext($2))', [userId, date]);
-    const { rows: existing } = await client.query('SELECT id FROM readings WHERE user_id=$1 AND reading_date=$2 AND slot=$3 AND ($4::int IS NULL OR id<>$4)', [userId,date,slot,id || null]);
-    if (existing.length) { const error = new Error(`You already have an ${slot} reading for this date.`); error.status = 409; throw error; }
-    const { rows: count } = await client.query('SELECT COUNT(*)::int AS count FROM readings WHERE user_id=$1 AND reading_date=$2 AND ($3::int IS NULL OR id<>$3)', [userId,date,id || null]);
-    if (count[0].count >= 4) { const error = new Error('You can add only 4 readings per day.'); error.status = 409; throw error; }
-    const result = id
-      ? await client.query('UPDATE readings SET reading_date=$1,slot=$2,value=$3 WHERE id=$4 AND user_id=$5 RETURNING id,reading_date::text AS date,slot,value', [date,slot,value,id,userId])
-      : await client.query('INSERT INTO readings(reading_date,slot,value,user_id) VALUES($1,$2,$3,$4) RETURNING id,reading_date::text AS date,slot,value', [date,slot,value,userId]);
-    if (!result.rows[0]) { const error = new Error('Reading not found.'); error.status = 404; throw error; }
-    await client.query('COMMIT');
+    // If editing, update the existing reading
+    if (id) {
+      // Check if another reading exists with same date/slot (but different id)
+      const duplicate = await pool.query(
+        `SELECT id FROM readings
+         WHERE user_id = $1 AND reading_date = $2 AND slot = $3 AND id <> $4`,
+        [userId, date, slot, id]
+      );
+
+      if (duplicate.rows.length > 0) {
+        const error = new Error(`You already have an ${slot} reading for this date.`);
+        error.status = 409;
+        throw error;
+      }
+
+      // Update the reading
+      const result = await pool.query(
+        `UPDATE readings
+         SET reading_date = $1, slot = $2, value = $3
+         WHERE id = $4 AND user_id = $5
+         RETURNING id, reading_date::text AS date, slot, value`,
+        [date, slot, value, id, userId]
+      );
+
+      if (!result.rows[0]) {
+        const error = new Error('Reading not found.');
+        error.status = 404;
+        throw error;
+      }
+
+      return result.rows[0];
+    }
+
+    // If adding new, check for duplicate slot
+    const duplicate = await pool.query(
+      `SELECT id FROM readings
+       WHERE user_id = $1 AND reading_date = $2 AND slot = $3`,
+      [userId, date, slot]
+    );
+
+    if (duplicate.rows.length > 0) {
+      const error = new Error(`You already have an ${slot} reading for this date.`);
+      error.status = 409;
+      throw error;
+    }
+
+    // Check if user already has 4 readings for this day
+    const dailyCount = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM readings
+       WHERE user_id = $1 AND reading_date = $2`,
+      [userId, date]
+    );
+
+    if (dailyCount.rows[0].count >= 4) {
+      const error = new Error('You can add only 4 readings per day.');
+      error.status = 409;
+      throw error;
+    }
+
+    // Insert the new reading
+    const result = await pool.query(
+      `INSERT INTO readings (reading_date, slot, value, user_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, reading_date::text AS date, slot, value`,
+      [date, slot, value, userId]
+    );
+
     return result.rows[0];
   } catch (error) {
-    await client.query('ROLLBACK');
-    if (error.code === '23505') { error.status = 409; error.message = `You already have an ${slot} reading for this date.`; }
+    // Handle unique constraint violation (duplicate reading)
+    if (error.code === '23505') {
+      error.status = 409;
+      error.message = `You already have an ${slot} reading for this date.`;
+    }
     throw error;
-  } finally { client.release(); }
+  }
 }
 
+// Delete a reading
 export async function deleteReading(userId, id) {
-  const result = await pool.query('DELETE FROM readings WHERE id=$1 AND user_id=$2', [id,userId]);
+  const result = await pool.query(
+    'DELETE FROM readings WHERE id = $1 AND user_id = $2',
+    [id, userId]
+  );
+
+  // Return true if a row was deleted
   return result.rowCount > 0;
 }
 
-export async function getReportReadings(userId, start, end) {
-  const { rows } = await pool.query('SELECT id,reading_date::text AS date,slot,value FROM readings WHERE user_id=$1 AND reading_date BETWEEN $2 AND $3 ORDER BY reading_date,slot', [userId,start,end]);
-  return rows;
-}
-
-// Password Reset Functions
-export async function createPasswordResetToken(userId, token) {
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
-  const { rows } = await pool.query(
-    'INSERT INTO password_reset_tokens(user_id, token, expires_at) VALUES($1, $2, $3) RETURNING id',
-    [userId, token, expiresAt]
+// Get readings for a date range (used for reports)
+export async function getReportReadings(userId, startDate, endDate) {
+  const result = await pool.query(
+    `SELECT id, reading_date::text AS date, slot, value
+     FROM readings
+     WHERE user_id = $1 AND reading_date BETWEEN $2 AND $3
+     ORDER BY reading_date, slot`,
+    [userId, startDate, endDate]
   );
-  return rows[0];
-}
 
-export async function findPasswordResetToken(token) {
-  const { rows } = await pool.query(
-    'SELECT prt.*, u.email, u.name FROM password_reset_tokens prt JOIN users u ON prt.user_id = u.id WHERE prt.token = $1 AND prt.used = FALSE AND prt.expires_at > NOW()',
-    [token]
-  );
-  return rows[0] || null;
-}
-
-export async function markTokenAsUsed(token) {
-  await pool.query('UPDATE password_reset_tokens SET used = TRUE WHERE token = $1', [token]);
-}
-
-export async function updateUserPassword(userId, passwordHash) {
-  await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, userId]);
+  return result.rows;
 }
